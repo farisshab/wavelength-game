@@ -13,7 +13,7 @@ A party game for friends: one player sees a secret target on a scale (like *Hot 
 
 ## Play it
 
-🔗 **[Play now](https://www.wavelengthgame.me)**
+🔗 **[Play now](https://wavelengthgame.me/)**
 
 ## Built with
 
