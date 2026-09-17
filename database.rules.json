@@ -1,0 +1,24 @@
+{
+  "rules": {
+    "lobbies": {
+      "$code": {
+        ".read": "auth != null && $code.matches(/^[A-Z0-9]{6}$/)",
+        ".write": "auth != null && $code.matches(/^[A-Z0-9]{6}$/)",
+        ".validate": "newData.hasChildren(['players', 'phase'])"
+      }
+    },
+    "presence": {
+      "$code": {
+        ".read": "auth != null && $code.matches(/^[A-Z0-9]{6}$/)",
+        ".write": "auth != null && $code.matches(/^[A-Z0-9]{6}$/)",
+        "$pid": {
+          ".validate": "newData.isBoolean() || newData.hasChildren(['online'])"
+        }
+      }
+    },
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}
