@@ -1,91 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { db, waitForAuth } from "./firebase";
 import { ref, set, onValue, off, get, onDisconnect, remove, serverTimestamp } from "firebase/database";
-
-/* ─── Spectrum Data ─── */
-const SPECTRUMS = [
-  // ─── Original 50 ───
-  ["Hot","Cold"],["Overrated","Underrated"],["Good","Evil"],["Round","Pointy"],
-  ["Boring","Exciting"],["Cheap","Expensive"],["Famous","Unknown"],["Old","Young"],
-  ["Easy","Hard"],["Beautiful","Ugly"],["Safe","Dangerous"],["Loud","Quiet"],
-  ["Fast","Slow"],["Sweet","Sour"],["Healthy","Unhealthy"],["Common","Rare"],
-  ["Useful","Useless"],["Simple","Complex"],["Strong","Weak"],["Funny","Serious"],
-  ["Real","Fictional"],["Mainstream","Niche"],["Relaxing","Stressful"],["Natural","Artificial"],
-  ["Classic","Modern"],["Innocent","Guilty"],["Ordinary","Extraordinary"],["Dry","Wet"],
-  ["Fragile","Durable"],["Friendly","Intimidating"],["Necessary","Luxury"],["Permanent","Temporary"],
-  ["Predictable","Unpredictable"],["Public","Private"],["Romantic","Unromantic"],
-  ["Scary","Not Scary"],["Smelly","Odorless"],["Soft","Hard"],["Trendy","Timeless"],
-  ["Urban","Rural"],["Weird","Normal"],["Wild","Tame"],["Addictive","Forgettable"],
-  ["Calming","Energizing"],["Colorful","Dull"],["Deep","Shallow"],["Elegant","Tacky"],
-  ["Generous","Stingy"],["Guilty Pleasure","Openly Loved"],["Humble","Arrogant"],
-  // ─── Size & Scale ───
-  ["Tiny","Enormous"],["Microscopic","Cosmic"],["Lightweight","Heavy"],
-  ["Narrow","Wide"],["Short","Tall"],
-  // ─── Taste & Food ───
-  ["Spicy","Mild"],["Savory","Sweet"],["Crunchy","Mushy"],["Gourmet","Fast Food"],
-  ["Raw","Overcooked"],["Appetizing","Disgusting"],["Refreshing","Heavy"],
-  // ─── Texture & Sensation ───
-  ["Smooth","Rough"],["Sticky","Slippery"],["Fluffy","Dense"],["Warm","Cool"],
-  ["Crispy","Soggy"],["Silky","Coarse"],
-  // ─── Time & Speed ───
-  ["Ancient","Futuristic"],["Instant","Eternal"],["Punctual","Fashionably Late"],
-  // ─── Emotion & Mood ───
-  ["Joyful","Melancholy"],["Hopeful","Cynical"],["Nostalgic","Forward-Looking"],
-  ["Cozy","Unsettling"],["Euphoric","Numb"],["Sentimental","Detached"],
-  ["Comforting","Disturbing"],["Peaceful","Chaotic"],
-  // ─── Social & Personality ───
-  ["Introverted","Extroverted"],["Rebellious","Obedient"],["Classy","Trashy"],
-  ["Chill","Intense"],["Polite","Rude"],["Charming","Awkward"],
-  ["Trusting","Suspicious"],["Petty","Gracious"],["Mysterious","Open Book"],
-  ["Leader","Follower"],["High Maintenance","Low Maintenance"],
-  // ─── Culture & Entertainment ───
-  ["Indie","Blockbuster"],["Cult Classic","Crowd Pleaser"],["Binge-Worthy","Skip"],
-  ["Award-Winning","Box Office Flop"],
-  ["Catchy","Forgettable"],
-  ["For Kids","For Adults"],["Heartwarming","Heartbreaking"],
-  // ─── Aesthetics & Style ───
-  ["Minimalist","Maximalist"],["Vintage","Futuristic"],["Photogenic","Unphotogenic"],
-  ["Glamorous","Plain"],["Artsy","Practical"],["Polished","Raw"],
-  ["Monochrome","Rainbow"],["Sleek","Bulky"],
-  // ─── Intelligence & Knowledge ───
-  ["Genius","Clueless"],["Book Smart","Street Smart"],["Wise","Foolish"],
-  ["Logical","Emotional"],["Creative","Analytical"],["Literal","Abstract"],
-  // ─── Risk & Morality ───
-  ["Risky","Safe Bet"],["Legal","Illegal"],["Ethical","Sketchy"],
-  ["Heroic","Villainous"],["Selfless","Selfish"],["Brave","Cowardly"],
-  ["Wholesome","Cursed"],
-  // ─── Nature & Environment ───
-  ["Tropical","Arctic"],["Mountain","Beach"],["Desert","Rainforest"],
-  ["Sunrise","Sunset"],["Calm Sea","Stormy Sea"],["Garden","Wilderness"],
-  // ─── Technology & Progress ───
-  ["Analog","Digital"],["High-Tech","Low-Tech"],["Innovative","Outdated"],
-  ["Open Source","Proprietary"],["Automated","Handmade"],
-  // ─── Daily Life ───
-  ["Morning Person","Night Person"],["Overachiever","Slacker"],
-  ["Homebody","Adventurer"],["Organized","Messy"],["DIY","Hire Someone"],
-  ["Takeout","Home-Cooked"],["Window Seat","Aisle Seat"],
-  ["Road Trip","Flight"],["Spontaneous","Planned"],
-  // ─── Abstract & Philosophical ───
-  ["Temporary Fix","Permanent Solution"],["Overblown","Understated"],
-  ["Mainstream Hit","Hidden Gem"],["Overhyped","Slept On"],
-  ["Cringe","Based"],["Mid","Peak"],["Cursed","Blessed"],
-  ["Main Character","Background Extra"],["Canon","Fanfiction"],
-  ["Touch Grass","Chronically Online"],["W","L"],
-  ["Slay","Flop"],["Core Memory","Forgotten"],
-  // ─── Custom ───
-  ["Good Person", "Bad Person"], ["Green Flag", "Red Flag"], ["Worth the Money", "Total Ripoff"]
-];
-
-const genId = () => Math.random().toString(36).slice(2, 10);
-const genLobbyCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
-
-/** Pick a random spectrum not yet used in this game. Falls back to full pool if all used. */
-function pickUnusedSpectrum(usedSpectrums) {
-  const usedKeys = new Set((usedSpectrums || []).map(s => s.join("|")));
-  const available = SPECTRUMS.filter(s => !usedKeys.has(s.join("|")));
-  const pool = available.length > 0 ? available : SPECTRUMS; // reset if exhausted
-  return pool[Math.floor(Math.random() * pool.length)];
-}
+import {
+  genId,
+  genLobbyCode,
+  pickUnusedSpectrum,
+  averageGuesses,
+  calculateGuessPoints,
+  resolveCounterVoteDirection,
+  counterGuessOutcome,
+  isPresenceAlive,
+  pickSmallerTeam,
+  isGameOver,
+  hasTeamReachedWinningScore,
+  determineWinner,
+} from "./gameLogic";
 
 /* ─── Firebase helpers ─── */
 function lobbyRef(code) {
@@ -125,9 +54,7 @@ async function isLobbyStale(code) {
     const presenceData = snapshot.val() || {};
     const now = Date.now();
     // Lobby is stale if nobody has a heartbeat within the last 60 seconds
-    const anyAlive = Object.values(presenceData).some(
-      v => v.online === true && v.lastSeen && (now - v.lastSeen) < 60000
-    );
+    const anyAlive = Object.values(presenceData).some(v => isPresenceAlive(v, now));
     return !anyAlive;
   } catch { return false; }
 }
@@ -147,8 +74,7 @@ async function pruneStalePlayersAndRejoin(code, currentPlayerId) {
   // A player is "alive" if their heartbeat is within the last 60 seconds
   const isAlive = (pid) => {
     if (pid === currentPlayerId) return true; // Joining player is always alive
-    const p = presenceData[pid];
-    return p && p.online === true && p.lastSeen && (now - p.lastSeen) < 60000;
+    return isPresenceAlive(presenceData[pid], now);
   };
 
   const stalePlayers = state.players.filter(p => !isAlive(p.id));
@@ -635,7 +561,7 @@ export default function App() {
       // Count players who are actually online (heartbeat within last 60s)
       const now = Date.now();
       const aliveIds = Object.entries(presenceData).filter(
-        ([, v]) => v.online === true && v.lastSeen && (now - v.lastSeen) < 60000
+        ([, v]) => isPresenceAlive(v, now)
       ).map(([k]) => k);
 
       // Cancel any previous onDisconnect cleanup
@@ -677,7 +603,7 @@ export default function App() {
 
       // Determine who's truly alive: online=true AND heartbeat within 60s
       const aliveIds = Object.entries(presenceData).filter(
-        ([, v]) => v.online === true && v.lastSeen && (now - v.lastSeen) < 60000
+        ([, v]) => isPresenceAlive(v, now)
       ).map(([k]) => k);
 
       // On first load just capture the current set
@@ -897,7 +823,7 @@ export default function App() {
       }
       // If game is in progress, join as spectator (team: -1)
       const inGame = current.phase && current.phase !== "lobby";
-      const t = inGame ? -1 : (current.players.filter(p => p.team === 0).length <= current.players.filter(p => p.team === 1).length ? 0 : 1);
+      const t = inGame ? -1 : pickSmallerTeam(current.players);
       current.players.push({ id: playerId, name: playerName.trim(), team: t });
       await setGameState(code, current);
     }
@@ -1015,12 +941,8 @@ export default function App() {
     const teamGuesses = Object.entries(cur.guesses)
       .filter(([pid]) => pid !== "_init" && cur.players.find(p => p.id === pid)?.team === cur.activeTeam)
       .map(([, a]) => a);
-    const avg = teamGuesses.length > 0 ? teamGuesses.reduce((a, b) => a + b, 0) / teamGuesses.length : 90;
-    const diff = Math.abs(avg - cur.targetAngle);
-    let points = 0;
-    if (diff <= 4) points = 4;
-    else if (diff <= 11) points = 3;
-    else if (diff <= 18) points = 2;
+    const avg = averageGuesses(teamGuesses);
+    const points = calculateGuessPoints(avg, cur.targetAngle);
     const clueGiver = cur.players.find(p => p.id === cur.clueGiverId);
     const historyEntry = { round: cur.round, team: cur.activeTeam, spectrum: cur.spectrum, clue: cur.clue, target: cur.targetAngle, guess: avg, points, clueGiver: clueGiver?.name || "?" };
     const newHistory = cur.history.filter(h => h !== null);
@@ -1042,12 +964,8 @@ export default function App() {
     const votes = Object.entries(cur.counterVotes).filter(([k]) => k !== "_init");
     const leftCount = votes.filter(([, v]) => v === "left").length;
     const rightCount = votes.filter(([, v]) => v === "right").length;
-    let direction;
-    if (leftCount > rightCount) direction = "left";
-    else if (rightCount > leftCount) direction = "right";
-    else direction = Math.random() < 0.5 ? "left" : "right"; // tie-breaker
-    const actualDirection = cur.targetAngle < cur.teamGuessAngle ? "left" : cur.targetAngle > cur.teamGuessAngle ? "right" : null;
-    const correct = actualDirection !== null && direction === actualDirection;
+    const direction = resolveCounterVoteDirection(leftCount, rightCount);
+    const { correct } = counterGuessOutcome(cur.targetAngle, cur.teamGuessAngle, direction);
     const newScores = [...cur.scores];
     newScores[cur.activeTeam] += cur.pendingPoints || 0;
     if (correct) newScores[oppositeTeam] += 1;
@@ -1141,10 +1059,7 @@ export default function App() {
       return;
     }
     // Don't auto-advance if game is over (someone at 10+ and turns equal)
-    const someoneAt10 = gs.scores[0] >= 10 || gs.scores[1] >= 10;
-    const ttc = gs.teamTurnCount || { 0: 0, 1: 0 };
-    const turnsEqual = (ttc[0] || 0) === (ttc[1] || 0);
-    if (someoneAt10 && turnsEqual) {
+    if (isGameOver(gs.scores, gs.teamTurnCount)) {
       autoNextRoundRef.current = false;
       return;
     }
@@ -1181,10 +1096,7 @@ export default function App() {
   /* ─── Countdown timer for auto-advance ─── */
   useEffect(() => {
     if (!gs || gs.phase !== "reveal") { setAutoAdvanceCountdown(null); return; }
-    const someoneAt10 = gs.scores[0] >= 10 || gs.scores[1] >= 10;
-    const ttc = gs.teamTurnCount || { 0: 0, 1: 0 };
-    const turnsEqual = (ttc[0] || 0) === (ttc[1] || 0);
-    if (someoneAt10 && turnsEqual) { setAutoAdvanceCountdown(null); return; }
+    if (isGameOver(gs.scores, gs.teamTurnCount)) { setAutoAdvanceCountdown(null); return; }
     setAutoAdvanceCountdown(5);
     const interval = setInterval(() => {
       setAutoAdvanceCountdown(prev => {
@@ -1332,7 +1244,7 @@ export default function App() {
           setError("That name is already taken in this lobby!"); return;
         }
         const inGame = current.phase && current.phase !== "lobby";
-        const t = inGame ? -1 : (current.players.filter(p => p.team === 0).length <= current.players.filter(p => p.team === 1).length ? 0 : 1);
+        const t = inGame ? -1 : pickSmallerTeam(current.players);
         current.players.push({ id: playerId, name: playerName.trim(), team: t });
         await setGameState(urlCode, current);
       }
@@ -1824,8 +1736,7 @@ export default function App() {
               })()}
 
               {(() => {
-                const someoneAt10 = gs.scores[0] >= 10 || gs.scores[1] >= 10;
-                if (!someoneAt10) {
+                if (!hasTeamReachedWinningScore(gs.scores)) {
                   return <div style={{ fontSize: 14, opacity: 0.5, marginTop: 6, animation: "pulse 1.5s ease-in-out infinite" }}>
                     Next round {autoAdvanceCountdown ? `in ${autoAdvanceCountdown}s` : "starting soon"}...
                   </div>;
@@ -1843,7 +1754,7 @@ export default function App() {
                     </div>
                   </>;
                 }
-                const winner = gs.scores[0] > gs.scores[1] ? 0 : gs.scores[1] > gs.scores[0] ? 1 : -1;
+                const winner = determineWinner(gs.scores);
                 if (winner === -1) {
                   return <>
                     <div style={{ fontSize: 20, fontWeight: 900, fontFamily: "'Unbounded', sans-serif", color: th.gold, marginBottom: 6 }}>

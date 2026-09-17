@@ -11,11 +11,18 @@ node_modules
 dist
 dist-ssr
 *.local
+coverage
 
 # Environment variables (contains this project's Firebase config —
 # not secret, but kept out of git as hygiene; see .env.example)
 .env
 .env.local
+
+# Records which Firebase project `firebase deploy` targets — this should be
+# set per-clone with `firebase use --add`, not baked into the repo, or
+# anyone who clones this and runs `firebase deploy` gets a confusing
+# permission error trying to deploy to the original project.
+.firebaserc
 
 # Firebase CLI local deploy cache / emulator data / logs
 .firebase
